@@ -1,4 +1,12 @@
-import { Field, PublicKey, SmartContract, State, method, state } from 'o1js';
+import {
+  Field,
+  PublicKey,
+  SmartContract,
+  State,
+  ZkProgram,
+  method,
+  state,
+} from 'o1js';
 
 import {
   ZkonZkProgram,
@@ -10,7 +18,12 @@ const coordinatorAddress = PublicKey.fromBase58(
   'B62qnmsn4Bm4MzPujKeN1faxedz4p1cCAwA9mKAWzDjfb4c1ysVvWeK'
 );
 
+export let ZkonProof_ = ZkProgram.Proof(ZkonZkProgram);
+export class ZkonProof extends ZkonProof_ {}
+
 export class Request extends SmartContract {
+  @state(Field) result = State<Field>();
+
   events = {
     requested: ExternalRequestEvent,
   };
@@ -34,6 +47,13 @@ export class Request extends SmartContract {
     this.emitEvent('requested', event);
 
     return requestId;
+  }
+
+  @method
+  async receiveZkonResponse(requestId: Field, proof: ZkonProof) {
+    const coordinator = new ZkonRequestCoordinator(coordinatorAddress);
+    await coordinator.recordRequestFullfillment(requestId, proof);
+    this.result.set(proof.publicInput.dataField);
   }
 
   @method async someOtherMethod() {}
